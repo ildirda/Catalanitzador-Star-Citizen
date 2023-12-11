@@ -20,8 +20,8 @@ def instal·lar_traduccio(directori):
         response.raise_for_status()
 
         global_ini_path = os.path.join(directori_traduccio, "global.ini")
-        with open(global_ini_path, 'w', encoding='utf-8-sig') as global_ini_file:
-            global_ini_file.write(response.text)
+        with open(global_ini_path, 'wb') as global_ini_file:
+            global_ini_file.write(response.content)  # Escriu el contingut en mode binari
 
         btn_instal·lar.pack_forget()
         verificar_traduccio(directori_de_treball)
@@ -145,8 +145,8 @@ def actualitzar_traduccio():
         response = requests.get(url)
         response.raise_for_status()
 
-        with open(global_ini_path, 'w', encoding='utf-8-sig') as global_ini_file:
-            global_ini_file.write(response.text)
+        with open(global_ini_path, 'wb') as global_ini_file:
+            global_ini_file.write(response.content)  # Escriu el contingut en mode binari
 
         verificar_traduccio(directori_de_treball)
     except requests.RequestException as e:
