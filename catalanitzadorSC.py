@@ -100,7 +100,7 @@ def verificar_traduccio(directori):
     with open(localization_path, 'r', encoding='utf-8') as file:
         for linia in file:
             if "mobiGlas_ui_mobiGlasName=mobiGlas" in linia:
-                versio_local = linia.split('=')[-1].strip()
+                versio_local = linia.split(''Glas ')[-1].strip()
                 break
 
     # Comprovar la versió remota
@@ -111,7 +111,7 @@ def verificar_traduccio(directori):
 
         for linia in response.text.split('\n'):
             if "mobiGlas_ui_mobiGlasName=mobiGlas" in linia:
-                versio_remota = linia.split('=')[-1].strip()
+                versio_remota = linia.split(''Glas ')[-1].strip()
                 break
     except requests.RequestException as e:
         versio_remota = "Error al comprovar la versió remota"
