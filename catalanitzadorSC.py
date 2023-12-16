@@ -132,6 +132,21 @@ def verificar_traduccio(directori):
 
 
 def actualitzar_traduccio():
+    global directori_de_treball
+
+    # Llegir el directori des del fitxer si existeix
+    directori_guardat = llegir_directori_desat()
+    if directori_guardat and os.path.isdir(directori_guardat):
+        directori_de_treball = directori_guardat
+    else:
+        # Si el directori no està desat o no és vàlid, comprovar el directori per defecte
+        directori_defecte = r"C:\Program Files\Roberts Space Industries\StarCitizen\LIVE"
+        if os.path.isdir(directori_defecte):
+            directori_de_treball = directori_defecte
+        else:
+            messagebox.showerror("Error", "No s'ha seleccionat cap directori vàlid.")
+            return
+            
     print(f"Actualitzant des de: {directori_de_treball}")  # Línia de depuració
     if not directori_de_treball:
         messagebox.showerror("Error", "No s'ha seleccionat cap directori.")
