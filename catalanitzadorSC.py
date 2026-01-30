@@ -1,5 +1,6 @@
 import os
 import tkinter as tk
+import tkinter.font as tkfont
 from tkinter import filedialog, messagebox
 import requests
 
@@ -28,8 +29,6 @@ def instal·lar_traduccio(directori):
         with open(global_ini_path, 'wb') as global_ini_file:
             global_ini_file.write(response.content)  # Escriu el contingut en mode binari
 
-        btn_instal·lar.pack_forget()
-        verificar_traduccio(directori_de_treball)
     except requests.RequestException as e:
         messagebox.showerror("Error", f"No s'ha pogut descarregar el fitxer global.ini: {e}")
 
@@ -45,20 +44,30 @@ def desar_directori(directori):
     with open("directori.txt", "w") as file:
         file.write(directori)
 
+def obtenir_base_dir(directori):
+    base_name = os.path.basename(directori)
+    if base_name.upper() in ["LIVE", "HOTFIX"]:
+        return os.path.dirname(directori)
+    return directori
+
 def verificar_directori():
     directori_guardat = llegir_directori_desat()
     print(f"Directori guardat: {directori_guardat}")  # Línia de depuració
     if directori_guardat and os.path.isdir(directori_guardat):
-        lbl_missatge.config(text=f"Treballant sobre el directori: {directori_guardat}")
         verificar_traduccio(directori_guardat)
-        btn_seleccionar.pack_forget()
     else:
         comprovar_directori_defecte()
 
 
 def mostrar_missatge_seleccio():
-    lbl_missatge.config(text="Selecciona el directori on tens instal·lat Star Citizen.\nEntra fins al directori LIVE o HOTFIX i prem 'Selecciona carpeta'")
-    btn_seleccionar.pack(side=tk.LEFT, padx=20, pady=(0, 10))
+    set_base_directory("")
+    render_table([])
+    update_alert(
+        "warning",
+        "Selecciona el directori base",
+        "Entra a la carpeta StarCitizen per detectar els entorns disponibles.",
+        False
+    )
 
 def comprovar_directori_defecte():
     # Declarem que farem servir les globals
@@ -66,8 +75,9 @@ def comprovar_directori_defecte():
     global hi_ha_live
     global hi_ha_hotfix
 
-    directori_live = r"C:\Program Files\Roberts Space Industries\StarCitizen\LIVE"
-    directori_hotfix = r"C:\Program Files\Roberts Space Industries\StarCitizen\HOTFIX"
+    directori_base_defecte = r"C:\Program Files\Roberts Space Industries\StarCitizen"
+    directori_live = os.path.join(directori_base_defecte, "LIVE")
+    directori_hotfix = os.path.join(directori_base_defecte, "HOTFIX")
 
     # Avaluem si existeix el directori LIVE i/o HOTFIX
     hi_ha_live = os.path.isdir(directori_live)
@@ -75,19 +85,11 @@ def comprovar_directori_defecte():
     hi_ha_hotfix = os.path.isdir(directori_hotfix)
     print(f"directori HOTFIX: {hi_ha_hotfix}")  # Línia de depuració
 
-    # Prioritzem LIVE si hi és
-    if hi_ha_live:
-        directori_de_treball = directori_live
-        print(f"Operant sobre LIVE per defecte")  # Línia de depuració
-        lbl_missatge.config(text="Directori d'instal·lació per defecte (LIVE) localitzat.")
+    # Prioritzem LIVE si hi és, si no HOTFIX
+    if hi_ha_live or hi_ha_hotfix:
+        directori_de_treball = directori_base_defecte
+        print("Operant sobre el directori base per defecte")  # Línia de depuració
         verificar_traduccio(directori_de_treball)
-        btn_seleccionar.pack_forget()
-    elif hi_ha_hotfix:
-        directori_de_treball = directori_hotfix
-        print(f"Operant sobre HOTFIX per defecte")  # Línia de depuració
-        lbl_missatge.config(text="Directori d'instal·lació per defecte (HOTFIX) localitzat.")
-        verificar_traduccio(directori_de_treball)
-        btn_seleccionar.pack_forget()
     else:
         mostrar_missatge_seleccio()
 
@@ -100,43 +102,23 @@ def seleccionar_directori():
         # Si l'usuari cancela la selecció, no fem res
         return
 
-    # Extreiem el directori "pare" per comprovar l'existència de l'altre (LIVE o HOTFIX)
-    # Exemple: si l'usuari selecciona c:\jocs\LIVE, root_dir serà c:\jocs
-    root_dir = os.path.dirname(directori_seleccionat)
+    base_dir = obtenir_base_dir(directori_seleccionat)
+    directori_live = os.path.join(base_dir, "LIVE")
+    directori_hotfix = os.path.join(base_dir, "HOTFIX")
 
-    # Cas 1: L'usuari ha escollit LIVE
-    if directori_seleccionat.endswith("LIVE") and os.path.isdir(directori_seleccionat):
-        hi_ha_live = True
-        # Comprovem si també existeix la carpeta HOTFIX al mateix nivell
-        hotfix_path = os.path.join(root_dir, "HOTFIX")
-        hi_ha_hotfix = os.path.isdir(hotfix_path)
+    hi_ha_live = os.path.isdir(directori_live)
+    hi_ha_hotfix = os.path.isdir(directori_hotfix)
 
-        directori_de_treball = directori_seleccionat
-        lbl_missatge.config(text=f"Directori seleccionat: {directori_seleccionat}")
-        desar_directori(directori_seleccionat)
-        verificar_traduccio(directori_seleccionat)
-        btn_seleccionar.pack_forget()
-
-    # Cas 2: L'usuari ha escollit HOTFIX
-    elif directori_seleccionat.endswith("HOTFIX") and os.path.isdir(directori_seleccionat):
-        hi_ha_hotfix = True
-        # Comprovem si també existeix la carpeta LIVE al mateix nivell
-        live_path = os.path.join(root_dir, "LIVE")
-        hi_ha_live = os.path.isdir(live_path)
-
-        directori_de_treball = directori_seleccionat
-        lbl_missatge.config(text=f"Directori seleccionat: {directori_seleccionat}")
-        desar_directori(directori_seleccionat)
-        verificar_traduccio(directori_seleccionat)
-        btn_seleccionar.pack_forget()
-
-    # Cas 3: El directori no és ni LIVE ni HOTFIX
-    else:
-        lbl_missatge.config(
-            text="El directori seleccionat no és correcte. "
-                 "Ha de ser el directori LIVE o HOTFIX de Star Citizen."
+    if not (hi_ha_live or hi_ha_hotfix):
+        messagebox.showerror(
+            "Directori incorrecte",
+            "El directori seleccionat no conté cap entorn LIVE o HOTFIX."
         )
-        #mostrar_missatge_seleccio()
+        return
+
+    directori_de_treball = base_dir
+    desar_directori(base_dir)
+    verificar_traduccio(base_dir)
 
 def verificar_traduccio(directori):
     """
@@ -144,190 +126,174 @@ def verificar_traduccio(directori):
     Verifica la traducció als directoris que realment existeixin
     i mostra un missatge final sobre si cal o no actualitzar.
     """
-    import os
-    import requests
+    global hi_ha_live, hi_ha_hotfix, directori_de_treball
 
-    # -----------------------------
-    # 1) Deduïm les rutes LIVE i HOTFIX a partir del directori
-    # -----------------------------
-    # Si 'directori' acaba en LIVE/HOTFIX, usem el pare com a base;
-    # si no, assumim que 'directori' ja és la carpeta base.
-    base_name = os.path.basename(directori)
-    if base_name.upper() in ["LIVE", "HOTFIX"]:
-        base_dir = os.path.dirname(directori)
-    else:
-        base_dir = directori  # Possiblement l’usuari ha seleccionat la carpeta base
+    base_dir = obtenir_base_dir(directori)
+    directori_de_treball = base_dir
+    set_base_directory(base_dir)
 
     directori_live = os.path.join(base_dir, "LIVE")
     directori_hotfix = os.path.join(base_dir, "HOTFIX")
 
-    # -----------------------------
-    # 2) Comprovem quins directoris existeixen realment
-    # -----------------------------
     existeix_live = os.path.isdir(directori_live)
     existeix_hotfix = os.path.isdir(directori_hotfix)
 
-    # Si no en tenim cap, avisem i sortim
-    if not existeix_live and not existeix_hotfix:
-        lbl_missatge_traduccio.config(text="No s'ha detectat LIVE ni HOTFIX.")
-        lbl_missatge_actualitzacio.config(fg="red", text="No hi ha cap directori LIVE ni HOTFIX per verificar.")
-        return
+    hi_ha_live = existeix_live
+    hi_ha_hotfix = existeix_hotfix
 
-    # -----------------------------
-    # 3) Obtenir la versió remota de global.ini (només una vegada)
-    # -----------------------------
     versio_remota = "Desconeguda"
+    error_remot = False
     try:
         url = "http://www.paraules.net/SC/global.ini"
         response = requests.get(url)
         response.raise_for_status()
         for linia in response.text.split('\n'):
             if "mobiGlas_ui_mobiGlasName=mobiGlas" in linia:
-                # Exemple de línia: "mobiGlas_ui_mobiGlasName=mobiGlas 3.19"
                 versio_remota = linia.split('Glas ')[-1].strip()
                 break
+        if not versio_remota or versio_remota == "Desconeguda":
+            error_remot = True
     except requests.RequestException:
-        versio_remota = "Error al comprovar la versió remota"
+        error_remot = True
+        versio_remota = "Error"
 
-    # -----------------------------
-    # 4) Definim una funció auxiliar per a cada directori
-    #    que comprova si user.cfg i global.ini hi són. 
-    #    Si no hi són, instal·la la traducció. Després llegeix la versió local.
-    # -----------------------------
-    def check_and_install_if_missing(directori_concret):
+    def check_translation_info(directori_concret):
         cfg_path = os.path.join(directori_concret, "user.cfg")
         global_ini_path = os.path.join(directori_concret, "data", "Localization", "spanish_(spain)", "global.ini")
 
-        # Si no hi ha user.cfg o global.ini, instal·lem la traducció
-        if not os.path.isfile(cfg_path) or not os.path.isfile(global_ini_path):
-            instal·lar_traduccio(directori_concret)
+        te_traduccio = os.path.isfile(cfg_path) and os.path.isfile(global_ini_path)
 
-        # Tornem a mirar la versió local (pot ser que s'acabi d'instal·lar)
         versio_local = "Desconeguda"
-        if os.path.isfile(global_ini_path):
+        if te_traduccio:
             with open(global_ini_path, 'r', encoding='utf-8') as f:
                 for linia in f:
                     if "mobiGlas_ui_mobiGlasName=mobiGlas" in linia:
                         versio_local = linia.split('Glas ')[-1].strip()
                         break
-        return versio_local
+        return versio_local, te_traduccio
 
-    # -----------------------------
-    # 5) Verifiquem cadascun dels directoris existents
-    # -----------------------------
-    versions_locals = {}  # Guardarem: {"LIVE": "3.19", "HOTFIX": "Desconeguda", etc.}
+    rows = []
+    necessiten_actualitzacio = []
+
+    def afegir_fila(nom_env, dir_path):
+        versio_local, te_traduccio = check_translation_info(dir_path)
+        display_path = os.path.normpath(dir_path)
+
+        if error_remot:
+            estat = "Error"
+            color = COLORS["status_err"]
+            versio_remota_mostrar = "Error"
+        else:
+            versio_remota_mostrar = versio_remota
+            if not te_traduccio:
+                estat = "Sense traduïr"
+                color = COLORS["status_warn"]
+                versio_local = "-"
+                necessiten_actualitzacio.append(nom_env)
+            elif versio_local == "Desconeguda" or versio_local != versio_remota:
+                estat = "Desactualitzat"
+                color = COLORS["status_warn"]
+                necessiten_actualitzacio.append(nom_env)
+            else:
+                estat = "OK"
+                color = COLORS["status_ok"]
+
+        rows.append({
+            "env": nom_env,
+            "path": display_path,
+            "local": versio_local,
+            "remote": versio_remota_mostrar,
+            "status": estat,
+            "color": color,
+        })
 
     if existeix_live:
-        versio_local_live = check_and_install_if_missing(directori_live)
-        versions_locals["LIVE"] = versio_local_live
-
+        afegir_fila("LIVE", directori_live)
     if existeix_hotfix:
-        versio_local_hotfix = check_and_install_if_missing(directori_hotfix)
-        versions_locals["HOTFIX"] = versio_local_hotfix
+        afegir_fila("HOTFIX", directori_hotfix)
 
-    # -----------------------------
-    # 6) Si la versió remota té error, avisem i sortim
-    # -----------------------------
-    if versio_remota == "Error al comprovar la versió remota":
-        lbl_missatge_traduccio.config(text="No s'ha pogut obtenir la versió remota.")
-        lbl_missatge_actualitzacio.config(
-            fg="red",
-            text="Error al comprovar la versió remota. No podem determinar si cal actualitzar."
+    render_table(rows)
+
+    if not (existeix_live or existeix_hotfix):
+        update_alert(
+            "warning",
+            "No s'han detectat entorns",
+            "Selecciona el directori base de Star Citizen per continuar.",
+            False
         )
         return
 
-    # -----------------------------
-    # 7) Compare versions locals vs remota i preparem un missatge unificat
-    # -----------------------------
-    # - versions_locals pot contenir LIVE i/o HOTFIX
-    # - Ex: {"LIVE": "3.19", "HOTFIX": "3.18"}
-    necessiten_actualitzacio = []
-    text_versions = []
-
-    for nom_dir, versio_local in versions_locals.items():
-        # Afegim info de cada directori
-        text_versions.append(f"{nom_dir}: versió local = {versio_local}")
-
-        # Decidim si cal actualitzar
-        if versio_local == "Desconeguda":
-            # No hem pogut llegir la versió, o no està correctament instal·lada
-            necessiten_actualitzacio.append(nom_dir)
-        elif versio_local != versio_remota:
-            necessiten_actualitzacio.append(nom_dir)
-
-    # Mostrem les versions actuals en lbl_missatge_traduccio
-    text_versions = "\n".join(text_versions)
-    text_final_versions = (
-        f"Versió remota = {versio_remota}\n"
-        f"{text_versions}"
-    )
-    lbl_missatge_traduccio.config(text=text_final_versions)
-
-    # -----------------------------
-    # 8) Mostrem un missatge agregat de si cal actualitzar
-    # -----------------------------
-    if len(necessiten_actualitzacio) == 0:
-        # Cap directori necessita actualització
-        lbl_missatge_actualitzacio.config(fg="green", text="Tots els directoris estan actualitzats.")
-        btn_actualitzar.pack_forget()
-    elif len(necessiten_actualitzacio) == 1:
-        # Només un directori necessita actualització
-        nom_dir = necessiten_actualitzacio[0]
-        lbl_missatge_actualitzacio.config(fg="red", text=f"Cal actualitzar el directori {nom_dir}.")
-        btn_actualitzar.pack(side=tk.LEFT, padx=20, pady=12)
-    else:
-        # Més d'un directori necessita actualització (probablement 2)
-        noms = ", ".join(necessiten_actualitzacio)
-        lbl_missatge_actualitzacio.config(
-            fg="red",
-            text=f"Cal actualitzar la traducció als directoris: {noms}."
+    if error_remot:
+        update_alert(
+            "danger",
+            "No s'ha pogut obtenir la versió remota",
+            "Comprova la connexió i torna-ho a provar.",
+            False
         )
-        btn_actualitzar.pack(side=tk.LEFT, padx=20, pady=12)
+        return
+
+    if len(necessiten_actualitzacio) == 0:
+        update_alert(
+            "success",
+            "Tot actualitzat!",
+            "Tots els directoris estan actualitzats a la versió més recent.",
+            False
+        )
+    else:
+        update_alert(
+            "warning",
+            "Hi ha entorns pendents d'actualitzar",
+            "Prem el botó per actualitzar tots els entorns existents.",
+            True
+        )
 
 def actualitzar_traduccio():
     global directori_de_treball, hi_ha_live, hi_ha_hotfix
 
-    # 1. Llegim el directori guardat, o provem el per defecte
     directori_guardat = llegir_directori_desat()
+    base_dir = None
+
     if directori_guardat and os.path.isdir(directori_guardat):
-        directori_de_treball = directori_guardat
+        base_dir = obtenir_base_dir(directori_guardat)
     else:
-        # Si no hi ha directori desat o és invàlid, mirem els predeterminats
-        directori_live_defecte = r"C:\Program Files\Roberts Space Industries\StarCitizen\LIVE"
-        directori_hotfix_defecte = r"C:\Program Files\Roberts Space Industries\StarCitizen\HOTFIX"
-
-        existeix_live_defecte = os.path.isdir(directori_live_defecte)
-        existeix_hotfix_defecte = os.path.isdir(directori_hotfix_defecte)
-
-        # Prioritza LIVE si hi és, si no, HOTFIX, si no error
-        if existeix_live_defecte:
-            directori_de_treball = directori_live_defecte
-        elif existeix_hotfix_defecte:
-            directori_de_treball = directori_hotfix_defecte
+        directori_base_defecte = r"C:\Program Files\Roberts Space Industries\StarCitizen"
+        if os.path.isdir(directori_base_defecte):
+            base_dir = directori_base_defecte
         else:
-            messagebox.showerror("Error", "No s'ha trobat cap directori LIVE ni HOTFIX per defecte.\n"
-                                          "Selecciona manualment el directori.")
-            return
+            possibles = [
+                r"C:\Program Files\Roberts Space Industries\StarCitizen\LIVE",
+                r"C:\Program Files\Roberts Space Industries\StarCitizen\HOTFIX",
+            ]
+            for path in possibles:
+                if os.path.isdir(path):
+                    base_dir = os.path.dirname(path)
+                    break
 
-    # 2. A partir del directori_de_treball, calculem les rutes LIVE i HOTFIX
-    #    (Veure la lògica que fem servir a verificar_traduccio o similar)
-    base_name = os.path.basename(directori_de_treball)
-    if base_name.upper() in ["LIVE", "HOTFIX"]:
-        base_dir = os.path.dirname(directori_de_treball)
-    else:
-        base_dir = directori_de_treball
+    if not base_dir:
+        messagebox.showerror(
+            "Error",
+            "No s'ha trobat cap directori LIVE o HOTFIX per defecte.\n"
+            "Selecciona manualment el directori."
+        )
+        return
+
+    directori_de_treball = base_dir
+    desar_directori(base_dir)
 
     directori_live = os.path.join(base_dir, "LIVE")
     directori_hotfix = os.path.join(base_dir, "HOTFIX")
 
-    # Comprovem quins existeixen realment
     hi_ha_live = os.path.isdir(directori_live)
     hi_ha_hotfix = os.path.isdir(directori_hotfix)
 
-    # 3. Funció auxiliar que sobreescriu el global.ini en un directori concret
     def update_global_ini(dir_path):
+        cfg_path = os.path.join(dir_path, "user.cfg")
+        if not os.path.isfile(cfg_path):
+            with open(cfg_path, 'w', encoding='utf-8') as cfg_file:
+                cfg_file.write("g_language = spanish_(spain)")
+
         directori_traduccio = os.path.join(dir_path, "data", "Localization", "spanish_(spain)")
-        os.makedirs(directori_traduccio, exist_ok=True)  # Per si de cas no existeix
+        os.makedirs(directori_traduccio, exist_ok=True)
         global_ini_path = os.path.join(directori_traduccio, "global.ini")
 
         try:
@@ -339,47 +305,505 @@ def actualitzar_traduccio():
         except requests.RequestException as e:
             messagebox.showerror("Error", f"No s'ha pogut descarregar el fitxer global.ini: {e}")
 
-    # 4. Actualitzem (sobreescrivim) el global.ini dels directoris que existeixin
     if hi_ha_live:
         update_global_ini(directori_live)
     if hi_ha_hotfix:
         update_global_ini(directori_hotfix)
 
-    if not hi_ha_live and not hi_ha_hotfix:
-        # Si no hi havia ni LIVE ni HOTFIX, avisem
-        messagebox.showerror("Error", "No s'ha trobat cap directori LIVE ni HOTFIX per actualitzar.")
+    if not (hi_ha_live or hi_ha_hotfix):
+        messagebox.showerror("Error", "No s'ha trobat cap directori LIVE o HOTFIX per actualitzar.")
         return
 
-    # 5. Verifiquem de nou l'estat de la traducció, per actualitzar labels i botons
-    verificar_traduccio(directori_de_treball)
+    verificar_traduccio(base_dir)
+
+def create_rounded_rect(canvas, x1, y1, x2, y2, radius, **kwargs):
+    points = [
+        x1 + radius, y1,
+        x2 - radius, y1,
+        x2, y1,
+        x2, y1 + radius,
+        x2, y2 - radius,
+        x2, y2,
+        x2 - radius, y2,
+        x1 + radius, y2,
+        x1, y2,
+        x1, y2 - radius,
+        x1, y1 + radius,
+        x1, y1,
+    ]
+    return canvas.create_polygon(points, smooth=True, **kwargs)
+
+class RoundedFrame(tk.Canvas):
+    def __init__(self, parent, bg, border, radius=16, padding=16, border_width=1):
+        super().__init__(parent, bg=COLORS["bg"], highlightthickness=0, bd=0)
+        self.card_bg = bg
+        self.border = border
+        self.radius = radius
+        self.padding = padding
+        self.border_width = border_width
+        self.container = tk.Frame(self, bg=self.card_bg)
+        self._window = self.create_window(
+            self.padding,
+            self.padding,
+            anchor="nw",
+            window=self.container,
+        )
+        self.bind("<Configure>", self._redraw)
+        self.container.bind("<Configure>", self._sync_height)
+
+    def _redraw(self, event=None):
+        self.delete("card")
+        width = self.winfo_width()
+        height = self.winfo_height()
+        if width <= 1 or height <= 1:
+            return
+        create_rounded_rect(
+            self,
+            self.border_width,
+            self.border_width,
+            width - self.border_width,
+            height - self.border_width,
+            self.radius,
+            fill=self.card_bg,
+            outline=self.border,
+            width=self.border_width,
+            tags="card",
+        )
+        self.coords(self._window, self.padding, self.padding)
+        self.itemconfigure(
+            self._window,
+            width=width - (self.padding * 2),
+        )
+
+    def _sync_height(self, event):
+        target_height = event.height + (self.padding * 2)
+        if self.winfo_height() != target_height:
+            self.configure(height=target_height)
+        self._redraw()
+
+    def set_colors(self, bg, border):
+        self.card_bg = bg
+        self.border = border
+        self.container.configure(bg=bg)
+        self._redraw()
+
+class RoundedButton(tk.Canvas):
+    def __init__(self, parent, text, command, bg, fg, hover_bg, font, padx=16, pady=8, radius=12):
+        self._font = tkfont.Font(font=font)
+        self._text = text
+        self._bg = bg
+        self._fg = fg
+        self._hover_bg = hover_bg
+        self._padx = padx
+        self._pady = pady
+        self._radius = radius
+        self._command = command
+
+        text_width = self._font.measure(text)
+        text_height = self._font.metrics("linespace")
+        width = text_width + (self._padx * 2)
+        height = text_height + (self._pady * 2)
+
+        super().__init__(parent, width=width, height=height, bg=parent["bg"], highlightthickness=0, bd=0)
+        self.configure(cursor="hand2")
+        self._rect = create_rounded_rect(
+            self,
+            0,
+            0,
+            width,
+            height,
+            self._radius,
+            fill=self._bg,
+            outline="",
+        )
+        self._label = self.create_text(
+            width / 2,
+            height / 2,
+            text=self._text,
+            fill=self._fg,
+            font=font,
+        )
+        self.bind("<Button-1>", self._on_click)
+        self.bind("<Enter>", self._on_enter)
+        self.bind("<Leave>", self._on_leave)
+
+    def _on_click(self, _event):
+        if self._command:
+            self._command()
+
+    def _on_enter(self, _event):
+        self.itemconfigure(self._rect, fill=self._hover_bg)
+
+    def _on_leave(self, _event):
+        self.itemconfigure(self._rect, fill=self._bg)
 
 
 # Crear la finestra principal
 finestra = tk.Tk()
 finestra.title("Catalanitzador Star Citizen")
-finestra.geometry("700x500")
+finestra.geometry("1080x640")
+finestra.minsize(1000, 600)
 
-# Estils
-estil_text = {'font': ('Arial', 12)}
+COLORS = {
+    "bg": "#F2F6FB",
+    "card": "#FFFFFF",
+    "border": "#D9E2EF",
+    "text_primary": "#1F2A44",
+    "text_secondary": "#5B6B82",
+    "accent": "#2563EB",
+    "accent_dark": "#1D4ED8",
+    "field_bg": "#F8FAFF",
+    "table_header": "#F7FAFF",
+    "success_bg": "#ECFDF3",
+    "success_border": "#A7F3D0",
+    "success_text": "#166534",
+    "success_icon_bg": "#D1FAE5",
+    "warning_bg": "#FFF7ED",
+    "warning_border": "#FDBA74",
+    "warning_text": "#9A3412",
+    "warning_icon_bg": "#FFEDD5",
+    "danger_bg": "#FEE2E2",
+    "danger_border": "#FECACA",
+    "danger_text": "#991B1B",
+    "danger_icon_bg": "#FEE2E2",
+    "status_ok": "#16A34A",
+    "status_warn": "#F97316",
+    "status_err": "#DC2626",
+    "button_muted_bg": "#E5E7EB",
+    "button_muted_hover": "#D1D5DB",
+    "button_muted_text": "#1F2937",
+}
 
-# Crear el marc per als widgets
-marc_principal = tk.Frame(finestra)
-marc_principal.pack(pady=20, padx=20, fill=tk.X)
+FONT_FAMILY = "Segoe UI"
+FONT_TITLE = (FONT_FAMILY, 18, "bold")
+FONT_SUBTITLE = (FONT_FAMILY, 11)
+FONT_SECTION = (FONT_FAMILY, 12, "bold")
+FONT_TABLE_HEADER = (FONT_FAMILY, 9, "bold")
+FONT_BODY = (FONT_FAMILY, 10)
+FONT_BODY_STRONG = (FONT_FAMILY, 10, "bold")
+FONT_ALERT_TITLE = (FONT_FAMILY, 11, "bold")
+FONT_CTA = (FONT_FAMILY, 11, "bold")
 
-# Crear els widgets
-lbl_missatge = tk.Label(marc_principal, text="", **estil_text, wraplength=650, justify="left", anchor='w')
-btn_seleccionar = tk.Button(marc_principal, text="Seleccionar directori LIVE o HOTFIX", command=seleccionar_directori)
-lbl_missatge_traduccio = tk.Label(marc_principal, text="", **estil_text, wraplength=650, justify="left", anchor='w')
-# Canvi en la creació del botó btn_instal·lar per passar el directori_de_treball
-btn_instal·lar = tk.Button(marc_principal, text="Instal·lar última versió de la traducció", command=lambda: instal·lar_traduccio(directori_de_treball))
-lbl_missatge_actualitzacio = tk.Label(marc_principal, text="", **estil_text, wraplength=650, justify="left", anchor='w')
-btn_actualitzar = tk.Button(marc_principal, text="Actualitzar a la última versió", command=actualitzar_traduccio)
+finestra.configure(bg=COLORS["bg"])
 
-# Organitzar els widgets dins del marc
-lbl_missatge.pack(fill=tk.X, pady=12)
-lbl_missatge_traduccio.pack(fill=tk.X, pady=12)
-btn_seleccionar.pack(side=tk.LEFT, padx=20, pady=12)
-lbl_missatge_actualitzacio.pack(fill=tk.X, pady=(12, 0))
+main = tk.Frame(finestra, bg=COLORS["bg"])
+main.pack(fill="both", expand=True, padx=24, pady=24)
+main.grid_columnconfigure(0, weight=1)
+
+header_frame = tk.Frame(main, bg=COLORS["bg"])
+header_frame.grid(row=0, column=0, sticky="ew")
+header_frame.grid_columnconfigure(0, weight=1)
+
+lbl_titol = tk.Label(
+    header_frame,
+    text="Catalanitzador Star Citizen",
+    bg=COLORS["bg"],
+    fg=COLORS["text_primary"],
+    font=FONT_TITLE,
+)
+lbl_titol.grid(row=0, column=0, sticky="w")
+
+lbl_subtitol = tk.Label(
+    header_frame,
+    text="Instal·la o actualitza la traducció en LIVE i HOTFIX",
+    bg=COLORS["bg"],
+    fg=COLORS["text_secondary"],
+    font=FONT_SUBTITLE,
+)
+lbl_subtitol.grid(row=1, column=0, sticky="w", pady=(2, 0))
+
+card_directori = RoundedFrame(
+    main,
+    bg=COLORS["card"],
+    border=COLORS["border"],
+    radius=16,
+    padding=16,
+)
+card_directori.grid(row=1, column=0, sticky="ew", pady=(18, 16))
+card_directori.container.grid_columnconfigure(0, weight=1)
+
+lbl_directori = tk.Label(
+    card_directori.container,
+    text="Directori base",
+    bg=COLORS["card"],
+    fg=COLORS["text_primary"],
+    font=FONT_SECTION,
+)
+lbl_directori.grid(row=0, column=0, columnspan=2, sticky="w", padx=20, pady=(16, 8))
+
+directori_base_var = tk.StringVar(value="")
+directori_wrap = tk.Frame(
+    card_directori.container,
+    bg=COLORS["field_bg"],
+    highlightthickness=1,
+    highlightbackground=COLORS["border"],
+)
+directori_wrap.grid(row=1, column=0, sticky="ew", padx=(20, 12), pady=(0, 16))
+directori_wrap.grid_columnconfigure(0, weight=1)
+
+entrada_directori = tk.Entry(
+    directori_wrap,
+    textvariable=directori_base_var,
+    state="readonly",
+    readonlybackground=COLORS["field_bg"],
+    bd=0,
+    fg=COLORS["text_primary"],
+    font=FONT_BODY,
+    highlightthickness=0,
+)
+entrada_directori.grid(row=0, column=0, sticky="ew", padx=12, pady=10)
+
+btn_seleccionar = RoundedButton(
+    card_directori.container,
+    text="Seleccionar directori arrel",
+    command=seleccionar_directori,
+    bg=COLORS["button_muted_bg"],
+    fg=COLORS["button_muted_text"],
+    font=FONT_BODY_STRONG,
+    hover_bg=COLORS["button_muted_hover"],
+    padx=18,
+    pady=8,
+    radius=14,
+)
+btn_seleccionar.grid(row=1, column=1, sticky="e", padx=(0, 20), pady=(0, 16))
+
+card_entorns = RoundedFrame(
+    main,
+    bg=COLORS["card"],
+    border=COLORS["border"],
+    radius=16,
+    padding=16,
+)
+card_entorns.grid(row=2, column=0, sticky="ew")
+card_entorns.container.grid_columnconfigure(0, weight=1)
+
+lbl_entorns = tk.Label(
+    card_entorns.container,
+    text="Entorns detectats",
+    bg=COLORS["card"],
+    fg=COLORS["text_primary"],
+    font=FONT_SECTION,
+)
+lbl_entorns.grid(row=0, column=0, sticky="w", padx=20, pady=(16, 8))
+
+table_header = tk.Frame(card_entorns.container, bg=COLORS["table_header"])
+table_header.grid(row=1, column=0, sticky="ew", padx=20)
+
+TABLE_COL_WIDTHS = [100, 420, 120, 120, 120]
+headers = ["ENTORN", "RUTA", "VERSIÓ LOCAL", "VERSIÓ REMOTA", "ESTAT"]
+for idx, width in enumerate(TABLE_COL_WIDTHS):
+    table_header.grid_columnconfigure(idx, minsize=width)
+for idx, text in enumerate(headers):
+    label = tk.Label(
+        table_header,
+        text=text,
+        bg=COLORS["table_header"],
+        fg=COLORS["text_secondary"],
+        font=FONT_TABLE_HEADER,
+        anchor="w",
+        justify="left",
+    )
+    label.grid(row=0, column=idx, sticky="w", padx=8, pady=10)
+
+table_body = tk.Frame(card_entorns.container, bg=COLORS["card"])
+table_body.grid(row=2, column=0, sticky="ew", padx=20, pady=(0, 16))
+for idx, width in enumerate(TABLE_COL_WIDTHS):
+    table_body.grid_columnconfigure(idx, minsize=width)
+
+alert_frame = RoundedFrame(
+    main,
+    bg=COLORS["success_bg"],
+    border=COLORS["success_border"],
+    radius=16,
+    padding=16,
+)
+alert_frame.grid(row=3, column=0, sticky="ew", pady=(16, 0))
+alert_frame.container.grid_columnconfigure(1, weight=1)
+
+alert_icon = tk.Canvas(alert_frame.container, width=28, height=28, bg=COLORS["success_bg"], highlightthickness=0)
+alert_icon.grid(row=0, column=0, padx=(16, 12), pady=16)
+
+alert_text_frame = tk.Frame(alert_frame.container, bg=COLORS["success_bg"])
+alert_text_frame.grid(row=0, column=1, sticky="w", pady=16)
+
+alert_title = tk.Label(
+    alert_text_frame,
+    text="",
+    bg=COLORS["success_bg"],
+    fg=COLORS["success_text"],
+    font=FONT_ALERT_TITLE,
+)
+alert_title.pack(anchor="w")
+
+alert_message = tk.Label(
+    alert_text_frame,
+    text="",
+    bg=COLORS["success_bg"],
+    fg=COLORS["text_secondary"],
+    font=FONT_BODY,
+    wraplength=560,
+    justify="left",
+)
+alert_message.pack(anchor="w", pady=(4, 0))
+
+btn_actualitzar = RoundedButton(
+    alert_frame.container,
+    text="Actualitzar tots els entorns",
+    command=actualitzar_traduccio,
+    bg=COLORS["accent"],
+    fg="white",
+    font=FONT_CTA,
+    hover_bg=COLORS["accent_dark"],
+    padx=24,
+    pady=10,
+    radius=16,
+)
+btn_actualitzar.grid(row=0, column=2, padx=(0, 16), pady=16)
+btn_actualitzar.grid_remove()
+
+ALERT_STYLES = {
+    "success": {
+        "bg": COLORS["success_bg"],
+        "border": COLORS["success_border"],
+        "text": COLORS["success_text"],
+        "subtext": COLORS["text_secondary"],
+        "icon_bg": COLORS["success_icon_bg"],
+        "icon_fg": COLORS["success_text"],
+        "icon_text": "✓",
+    },
+    "warning": {
+        "bg": COLORS["warning_bg"],
+        "border": COLORS["warning_border"],
+        "text": COLORS["warning_text"],
+        "subtext": COLORS["text_secondary"],
+        "icon_bg": COLORS["warning_icon_bg"],
+        "icon_fg": COLORS["warning_text"],
+        "icon_text": "!",
+    },
+    "danger": {
+        "bg": COLORS["danger_bg"],
+        "border": COLORS["danger_border"],
+        "text": COLORS["danger_text"],
+        "subtext": COLORS["text_secondary"],
+        "icon_bg": COLORS["danger_icon_bg"],
+        "icon_fg": COLORS["danger_text"],
+        "icon_text": "!",
+    },
+}
+
+def set_base_directory(path):
+    directori_base_var.set(path)
+
+def render_table(rows):
+    for child in table_body.winfo_children():
+        child.destroy()
+
+    if not rows:
+        empty_label = tk.Label(
+            table_body,
+            text="",
+            bg=COLORS["card"],
+            fg=COLORS["text_secondary"],
+            font=FONT_BODY,
+        )
+        empty_label.grid(row=0, column=0, sticky="w", pady=12)
+        return
+
+    for idx, row in enumerate(rows):
+        row_index = idx * 2
+
+        env_label = tk.Label(
+            table_body,
+            text=row["env"],
+            bg=COLORS["card"],
+            fg=COLORS["text_primary"],
+            font=FONT_BODY_STRONG,
+            anchor="w",
+            justify="left",
+        )
+        env_label.grid(row=row_index, column=0, sticky="w", padx=8, pady=12)
+
+        path_label = tk.Label(
+            table_body,
+            text=row["path"],
+            bg=COLORS["card"],
+            fg=COLORS["text_primary"],
+            font=FONT_BODY,
+            wraplength=TABLE_COL_WIDTHS[1] - 16,
+            justify="left",
+            anchor="w",
+        )
+        path_label.grid(row=row_index, column=1, sticky="w", padx=8, pady=12)
+
+        local_label = tk.Label(
+            table_body,
+            text=row["local"],
+            bg=COLORS["card"],
+            fg=COLORS["text_primary"],
+            font=FONT_BODY,
+            anchor="w",
+            justify="left",
+        )
+        local_label.grid(row=row_index, column=2, sticky="w", padx=8, pady=12)
+
+        remote_label = tk.Label(
+            table_body,
+            text=row["remote"],
+            bg=COLORS["card"],
+            fg=COLORS["text_primary"],
+            font=FONT_BODY,
+            anchor="w",
+            justify="left",
+        )
+        remote_label.grid(row=row_index, column=3, sticky="w", padx=8, pady=12)
+
+        status_frame = tk.Frame(table_body, bg=COLORS["card"])
+        status_frame.grid(row=row_index, column=4, sticky="w", padx=8, pady=12)
+
+        status_dot = tk.Label(
+            status_frame,
+            text="●",
+            bg=COLORS["card"],
+            fg=row["color"],
+            font=FONT_BODY_STRONG,
+        )
+        status_dot.pack(side=tk.LEFT, padx=(0, 6))
+
+        status_label = tk.Label(
+            status_frame,
+            text=row["status"],
+            bg=COLORS["card"],
+            fg=row["color"],
+            font=FONT_BODY_STRONG,
+        )
+        status_label.pack(side=tk.LEFT)
+
+        if idx < len(rows) - 1:
+            separator = tk.Frame(table_body, bg=COLORS["border"], height=1)
+            separator.grid(row=row_index + 1, column=0, columnspan=5, sticky="ew")
+
+def update_alert(kind, title, message, show_button):
+    style = ALERT_STYLES[kind]
+    alert_frame.set_colors(style["bg"], style["border"])
+    alert_icon.configure(bg=style["bg"])
+    alert_text_frame.configure(bg=style["bg"])
+    alert_title.configure(text=title, fg=style["text"], bg=style["bg"])
+    alert_message.configure(text=message, fg=style["subtext"], bg=style["bg"])
+
+    alert_icon.delete("all")
+    alert_icon.create_oval(2, 2, 26, 26, fill=style["icon_bg"], outline="")
+    alert_icon.create_text(
+        14,
+        14,
+        text=style["icon_text"],
+        fill=style["icon_fg"],
+        font=(FONT_FAMILY, 12, "bold"),
+    )
+
+    if show_button:
+        btn_actualitzar.grid()
+    else:
+        btn_actualitzar.grid_remove()
 
 # Iniciar la comprovació del directori
 print("Iniciant la comprovació del directori...")  # Línia de depuració
