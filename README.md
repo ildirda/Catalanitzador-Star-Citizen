@@ -15,7 +15,7 @@ python "catalanitzadorSC.py"
 ```
 
 ### Opció 2: baixant l’EXE
-Descarrega [l’última release](releases/latest) i executa l’`exe` directament.
+Descarrega [l’última release](https://github.com/ildirda/Catalanitzador-Star-Citizen/releases/latest) i executa l’`exe` directament.
 
 > Nota: l’EXE no està firmat. Està autogenerat per GitHub Actions a cada release (pots comprovar-ho als workflows del repositori).
 
