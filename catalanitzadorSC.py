@@ -1,3 +1,4 @@
+import json
 import os
 import tkinter as tk
 import tkinter.font as tkfont
@@ -8,6 +9,33 @@ import requests
 hi_ha_live = False
 hi_ha_hotfix = False
 directori_de_treball = ""
+CONFIG_FILE = "configuracio.json"
+
+def carregar_config():
+    try:
+        with open(CONFIG_FILE, "r", encoding="utf-8") as file:
+            dades = json.load(file)
+        if isinstance(dades, dict):
+            return dades
+    except (FileNotFoundError, json.JSONDecodeError, OSError):
+        pass
+    return {}
+
+def desar_config(dades):
+    try:
+        with open(CONFIG_FILE, "w", encoding="utf-8") as file:
+            json.dump(dades, file)
+    except OSError:
+        pass
+
+def carregar_preferencia_tema():
+    dades = carregar_config()
+    return dades.get("theme", "light")
+
+def desar_preferencia_tema(theme):
+    dades = carregar_config()
+    dades["theme"] = theme
+    desar_config(dades)
 
 def instal·lar_traduccio(directori):
     # Crear el fitxer user.cfg
@@ -34,15 +62,24 @@ def instal·lar_traduccio(directori):
 
 
 def llegir_directori_desat():
+    dades = carregar_config()
+    directori = dades.get("directori_base")
+    if directori:
+        return directori
     try:
         with open("directori.txt", "r") as file:
-            return file.read().strip()
+            directori = file.read().strip()
+        if directori:
+            dades["directori_base"] = directori
+            desar_config(dades)
+        return directori
     except FileNotFoundError:
         return None
 
 def desar_directori(directori):
-    with open("directori.txt", "w") as file:
-        file.write(directori)
+    dades = carregar_config()
+    dades["directori_base"] = directori
+    desar_config(dades)
 
 def obtenir_base_dir(directori):
     base_name = os.path.basename(directori)
@@ -437,14 +474,72 @@ class RoundedButton(tk.Canvas):
     def _on_leave(self, _event):
         self.itemconfigure(self._rect, fill=self._bg)
 
+    def set_colors(self, bg, fg, hover_bg):
+        self._bg = bg
+        self._fg = fg
+        self._hover_bg = hover_bg
+        self.itemconfigure(self._rect, fill=self._bg)
+        self.itemconfigure(self._label, fill=self._fg)
+        self.configure(bg=self.master["bg"])
 
-# Crear la finestra principal
-finestra = tk.Tk()
-finestra.title("Catalanitzador Star Citizen")
-finestra.geometry("1080x640")
-finestra.minsize(1000, 600)
 
-COLORS = {
+class ToggleSwitch(tk.Canvas):
+    def __init__(self, parent, variable, command, bg_off, bg_on, knob, border, width=52, height=28, radius=14):
+        super().__init__(parent, width=width, height=height, bg=parent["bg"], highlightthickness=0, bd=0)
+        self._variable = variable
+        self._command = command
+        self._bg_off = bg_off
+        self._bg_on = bg_on
+        self._knob = knob
+        self._border = border
+        self._width = width
+        self._height = height
+        self._radius = radius
+        self.bind("<Button-1>", self._toggle)
+        self._variable.trace_add("write", self._redraw)
+        self._redraw()
+
+    def _toggle(self, _event):
+        self._variable.set(not self._variable.get())
+        if self._command:
+            self._command()
+
+    def _redraw(self, *_args):
+        self.delete("all")
+        fill = self._bg_on if self._variable.get() else self._bg_off
+        create_rounded_rect(
+            self,
+            1,
+            1,
+            self._width - 1,
+            self._height - 1,
+            self._radius,
+            fill=fill,
+            outline=self._border,
+        )
+        knob_size = self._height - 6
+        if self._variable.get():
+            knob_x = self._width - knob_size - 3
+        else:
+            knob_x = 3
+        self.create_oval(
+            knob_x,
+            3,
+            knob_x + knob_size,
+            3 + knob_size,
+            fill=self._knob,
+            outline="",
+        )
+
+    def set_colors(self, bg_off, bg_on, knob, border, host_bg):
+        self._bg_off = bg_off
+        self._bg_on = bg_on
+        self._knob = knob
+        self._border = border
+        self.configure(bg=host_bg)
+        self._redraw()
+
+LIGHT_COLORS = {
     "bg": "#F2F6FB",
     "card": "#FFFFFF",
     "border": "#D9E2EF",
@@ -472,7 +567,51 @@ COLORS = {
     "button_muted_bg": "#E5E7EB",
     "button_muted_hover": "#D1D5DB",
     "button_muted_text": "#1F2937",
+    "toggle_knob": "#FFFFFF",
 }
+
+DARK_COLORS = {
+    "bg": "#1C1F26",
+    "card": "#252A33",
+    "border": "#353C47",
+    "text_primary": "#E5E9F2",
+    "text_secondary": "#A7B0C0",
+    "accent": "#4F8BFF",
+    "accent_dark": "#3A74E6",
+    "field_bg": "#20252E",
+    "table_header": "#2A303A",
+    "success_bg": "#1F2B24",
+    "success_border": "#2F4A3A",
+    "success_text": "#7CE9A0",
+    "success_icon_bg": "#294034",
+    "warning_bg": "#2D251C",
+    "warning_border": "#5A3B20",
+    "warning_text": "#F5B06E",
+    "warning_icon_bg": "#3B2D1E",
+    "danger_bg": "#2B2020",
+    "danger_border": "#5A2A2A",
+    "danger_text": "#F19999",
+    "danger_icon_bg": "#3A2424",
+    "status_ok": "#4ADE80",
+    "status_warn": "#FB923C",
+    "status_err": "#F87171",
+    "button_muted_bg": "#313845",
+    "button_muted_hover": "#3A4352",
+    "button_muted_text": "#E5E9F2",
+    "toggle_knob": "#E6EAF2",
+}
+
+CURRENT_THEME = carregar_preferencia_tema()
+if CURRENT_THEME not in ("light", "dark"):
+    CURRENT_THEME = "light"
+
+COLORS = DARK_COLORS if CURRENT_THEME == "dark" else LIGHT_COLORS
+
+# Crear la finestra principal
+finestra = tk.Tk()
+finestra.title("Catalanitzador Star Citizen")
+finestra.geometry("1080x660")
+finestra.minsize(1000, 620)
 
 FONT_FAMILY = "Segoe UI"
 FONT_TITLE = (FONT_FAMILY, 18, "bold")
@@ -591,6 +730,7 @@ table_header.grid(row=1, column=0, sticky="ew", padx=20)
 
 TABLE_COL_WIDTHS = [100, 420, 120, 120, 120]
 headers = ["ENTORN", "RUTA", "VERSIÓ LOCAL", "VERSIÓ REMOTA", "ESTAT"]
+header_labels = []
 for idx, width in enumerate(TABLE_COL_WIDTHS):
     table_header.grid_columnconfigure(idx, minsize=width)
 for idx, text in enumerate(headers):
@@ -604,6 +744,7 @@ for idx, text in enumerate(headers):
         justify="left",
     )
     label.grid(row=0, column=idx, sticky="w", padx=8, pady=10)
+    header_labels.append(label)
 
 table_body = tk.Frame(card_entorns.container, bg=COLORS["card"])
 table_body.grid(row=2, column=0, sticky="ew", padx=20, pady=(0, 16))
@@ -661,40 +802,75 @@ btn_actualitzar = RoundedButton(
 btn_actualitzar.grid(row=0, column=2, padx=(0, 16), pady=16)
 btn_actualitzar.grid_remove()
 
-ALERT_STYLES = {
-    "success": {
-        "bg": COLORS["success_bg"],
-        "border": COLORS["success_border"],
-        "text": COLORS["success_text"],
-        "subtext": COLORS["text_secondary"],
-        "icon_bg": COLORS["success_icon_bg"],
-        "icon_fg": COLORS["success_text"],
-        "icon_text": "✓",
-    },
-    "warning": {
-        "bg": COLORS["warning_bg"],
-        "border": COLORS["warning_border"],
-        "text": COLORS["warning_text"],
-        "subtext": COLORS["text_secondary"],
-        "icon_bg": COLORS["warning_icon_bg"],
-        "icon_fg": COLORS["warning_text"],
-        "icon_text": "!",
-    },
-    "danger": {
-        "bg": COLORS["danger_bg"],
-        "border": COLORS["danger_border"],
-        "text": COLORS["danger_text"],
-        "subtext": COLORS["text_secondary"],
-        "icon_bg": COLORS["danger_icon_bg"],
-        "icon_fg": COLORS["danger_text"],
-        "icon_text": "!",
-    },
-}
+theme_var = tk.BooleanVar(value=CURRENT_THEME == "dark")
+
+footer_frame = tk.Frame(main, bg=COLORS["bg"])
+footer_frame.grid(row=4, column=0, sticky="ew", pady=(16, 0))
+footer_frame.grid_columnconfigure(0, weight=1)
+footer_frame.grid_columnconfigure(1, weight=0)
+footer_frame.grid_columnconfigure(2, weight=0)
+
+theme_label = tk.Label(
+    footer_frame,
+    text="Mode fosc",
+    bg=COLORS["bg"],
+    fg=COLORS["text_secondary"],
+    font=FONT_BODY,
+)
+theme_label.grid(row=0, column=1, sticky="e", padx=(0, 8))
+
+theme_toggle = ToggleSwitch(
+    footer_frame,
+    variable=theme_var,
+    command=lambda: alternar_tema(),
+    bg_off=COLORS["button_muted_bg"],
+    bg_on=COLORS["accent"],
+    knob=COLORS["toggle_knob"],
+    border=COLORS["border"],
+)
+theme_toggle.grid(row=0, column=2, sticky="e")
+
+def build_alert_styles():
+    return {
+        "success": {
+            "bg": COLORS["success_bg"],
+            "border": COLORS["success_border"],
+            "text": COLORS["success_text"],
+            "subtext": COLORS["text_secondary"],
+            "icon_bg": COLORS["success_icon_bg"],
+            "icon_fg": COLORS["success_text"],
+            "icon_text": "✓",
+        },
+        "warning": {
+            "bg": COLORS["warning_bg"],
+            "border": COLORS["warning_border"],
+            "text": COLORS["warning_text"],
+            "subtext": COLORS["text_secondary"],
+            "icon_bg": COLORS["warning_icon_bg"],
+            "icon_fg": COLORS["warning_text"],
+            "icon_text": "!",
+        },
+        "danger": {
+            "bg": COLORS["danger_bg"],
+            "border": COLORS["danger_border"],
+            "text": COLORS["danger_text"],
+            "subtext": COLORS["text_secondary"],
+            "icon_bg": COLORS["danger_icon_bg"],
+            "icon_fg": COLORS["danger_text"],
+            "icon_text": "!",
+        },
+    }
+
+ALERT_STYLES = build_alert_styles()
+LAST_ROWS = []
+LAST_ALERT = None
 
 def set_base_directory(path):
     directori_base_var.set(path)
 
 def render_table(rows):
+    global LAST_ROWS
+    LAST_ROWS = [dict(row) for row in rows]
     for child in table_body.winfo_children():
         child.destroy()
 
@@ -783,6 +959,13 @@ def render_table(rows):
             separator.grid(row=row_index + 1, column=0, columnspan=5, sticky="ew")
 
 def update_alert(kind, title, message, show_button):
+    global LAST_ALERT
+    LAST_ALERT = {
+        "kind": kind,
+        "title": title,
+        "message": message,
+        "show_button": show_button,
+    }
     style = ALERT_STYLES[kind]
     alert_frame.set_colors(style["bg"], style["border"])
     alert_icon.configure(bg=style["bg"])
@@ -799,11 +982,84 @@ def update_alert(kind, title, message, show_button):
         fill=style["icon_fg"],
         font=(FONT_FAMILY, 12, "bold"),
     )
+    btn_actualitzar.configure(bg=alert_frame.container["bg"])
 
     if show_button:
         btn_actualitzar.grid()
     else:
         btn_actualitzar.grid_remove()
+
+def aplicar_tema(theme):
+    global COLORS, CURRENT_THEME, ALERT_STYLES
+
+    CURRENT_THEME = theme
+    COLORS = DARK_COLORS if theme == "dark" else LIGHT_COLORS
+    ALERT_STYLES = build_alert_styles()
+
+    if theme_var.get() != (theme == "dark"):
+        theme_var.set(theme == "dark")
+
+    finestra.configure(bg=COLORS["bg"])
+    main.configure(bg=COLORS["bg"])
+    header_frame.configure(bg=COLORS["bg"])
+    lbl_titol.configure(bg=COLORS["bg"], fg=COLORS["text_primary"])
+    lbl_subtitol.configure(bg=COLORS["bg"], fg=COLORS["text_secondary"])
+
+    card_directori.configure(bg=COLORS["bg"])
+    card_directori.set_colors(COLORS["card"], COLORS["border"])
+    lbl_directori.configure(bg=COLORS["card"], fg=COLORS["text_primary"])
+    directori_wrap.configure(
+        bg=COLORS["field_bg"],
+        highlightbackground=COLORS["border"],
+        highlightcolor=COLORS["border"],
+    )
+    entrada_directori.configure(
+        bg=COLORS["field_bg"],
+        readonlybackground=COLORS["field_bg"],
+        fg=COLORS["text_primary"],
+    )
+    btn_seleccionar.set_colors(
+        COLORS["button_muted_bg"],
+        COLORS["button_muted_text"],
+        COLORS["button_muted_hover"],
+    )
+
+    card_entorns.configure(bg=COLORS["bg"])
+    card_entorns.set_colors(COLORS["card"], COLORS["border"])
+    lbl_entorns.configure(bg=COLORS["card"], fg=COLORS["text_primary"])
+    table_header.configure(bg=COLORS["table_header"])
+    for label in header_labels:
+        label.configure(bg=COLORS["table_header"], fg=COLORS["text_secondary"])
+    table_body.configure(bg=COLORS["card"])
+
+    alert_frame.configure(bg=COLORS["bg"])
+    btn_actualitzar.set_colors(COLORS["accent"], "white", COLORS["accent_dark"])
+
+    footer_frame.configure(bg=COLORS["bg"])
+    theme_label.configure(bg=COLORS["bg"], fg=COLORS["text_secondary"])
+    theme_toggle.set_colors(
+        COLORS["button_muted_bg"],
+        COLORS["accent"],
+        COLORS["toggle_knob"],
+        COLORS["border"],
+        COLORS["bg"],
+    )
+
+    if LAST_ROWS is not None:
+        render_table(LAST_ROWS)
+    if LAST_ALERT:
+        update_alert(
+            LAST_ALERT["kind"],
+            LAST_ALERT["title"],
+            LAST_ALERT["message"],
+            LAST_ALERT["show_button"],
+        )
+
+    desar_preferencia_tema(theme)
+
+def alternar_tema():
+    theme = "dark" if theme_var.get() else "light"
+    aplicar_tema(theme)
 
 # Iniciar la comprovació del directori
 print("Iniciant la comprovació del directori...")  # Línia de depuració
