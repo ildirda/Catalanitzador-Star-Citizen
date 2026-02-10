@@ -19,9 +19,6 @@ Descarrega [l’última release](https://github.com/ildirda/Catalanitzador-Star-
 
 > Nota: l’EXE no està firmat. Està autogenerat per GitHub Actions a cada release (pots comprovar-ho als workflows del repositori).
 
-## Captura de pantalla
-![Captura de la interfície](docs/screenshot.png)
-
 ## Notes ràpides
 - Només es mostren els entorns LIVE i HOTFIX. La traducció del PTU no s'ofereix per aquest canal.
 - Pots activar el **mode fosc** amb el toggle del peu de la finestra (es recorda la preferència)
